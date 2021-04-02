@@ -44,7 +44,9 @@ public class G14HW1 {
         // &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
 
-        System.out.println("Dataset dimension = " + RawData.count());
+        System.out.println("Dataset starting dimension = " + RawData.count());
+        System.out.println("Number of partitons K = " + K);
+        System.out.println("Number of products with largest maximum normalized rating  T = " + T);
         JavaPairRDD<String, Float> maxNormRatings ;    // RDD of KV pairs
         Random randomGenerator = new Random();
 
@@ -53,7 +55,7 @@ public class G14HW1 {
         //
         // &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
-        maxNormRatings = RawData
+        maxNormRatings = RawData                                                                // cambiato count in maxNormRatings
                 .flatMapToPair((review ) -> {    // <-- MAP PHASE (R1)                                           cambiato document con review
                     String[] tokens = review .split(",");
 
@@ -64,26 +66,34 @@ public class G14HW1 {
                 })
                 .groupByKey()    // <-- REDUCE PHASE (R1)
                 .flatMapToPair((element) -> {
-                    float avg = 0;
+                    // Compute average of rating AvgRating
+                    float AvgRating = 0;
                     int n = 0;
                     for (Tuple2<String, Float> c : element._2()) {
-                        avg += c._2();
+                        AvgRating += c._2();
                         n++;
                     }
-
+                    // Apply normalization NormRating=Rating-AvgRating
+                    // For each UserID : (UserID, ( ProductID, Rating)) ->  (ProductID,NormRating)
                     ArrayList<Tuple2<String, Float>> normalizedRatings = new ArrayList<>();
                     for (Tuple2<String, Float> c : element._2()) {
-                        normalizedRatings.add(new Tuple2<>(c._1(), c._2() - avg/n));
+                        normalizedRatings.add(new Tuple2<>(c._1(), c._2() - AvgRating/n));
                     }
                     return normalizedRatings.iterator();
                 })
                 .reduceByKey((x, y) -> Math.max(x,y)); // <-- REDUCE PHASE (R2)
+                // Compute the maximum of the ratings, reduceByKey(f) method can be used because the operator
+                // max(*,*) is cumulative and associative
 
-        maxNormRatings.mapToPair(pair -> new Tuple2<Float , String>(pair._2, pair._1)).sortByKey(false).take(T)
-                .forEach(pair -> System.out.println(pair._2 + " -> " + pair._1));
+        // Extract the T maximum rated products
+        // At this point we got pairs of the form (ProductID,maxRating), swap key and value, in this way we can
+        // sort by key an then we take out the first T entries
+
+        maxNormRatings.mapToPair(pair -> new Tuple2<>(pair._2, pair._1)).sortByKey(false).take(T)
+                .forEach(pair -> System.out.println("Rating of "+ pair._2 + " -> " + pair._1));
 
 
-        System.out.println("Dataset dimension = " + maxNormRatings .count());
+        System.out.println("Dataset final dimension = " + maxNormRatings .count());
 
 
     }
