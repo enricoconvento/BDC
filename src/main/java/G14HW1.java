@@ -45,21 +45,21 @@ public class G14HW1 {
 
 
         System.out.println("Dataset dimension = " + RawData.count());
-        JavaPairRDD<String, Float> count;    // RDD of KV pairs
+        JavaPairRDD<String, Float> maxNormRatings ;    // RDD of KV pairs
         Random randomGenerator = new Random();
 
 
         // &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-        // IMPROVED WORD COUNT (keys in [0,K-1]) with groupByKey
+        //
         // &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
-        count = RawData
-                .flatMapToPair((document) -> {    // <-- MAP PHASE (R1)
-                    String[] tokens = document.split(",");
+        maxNormRatings = RawData
+                .flatMapToPair((review ) -> {    // <-- MAP PHASE (R1)                                           cambiato document con review
+                    String[] tokens = review .split(",");
 
                     ArrayList<Tuple2<String, Tuple2<String, Float>>> pairs = new ArrayList<>();
                     pairs.add(new Tuple2<>(tokens[1], new Tuple2<>(tokens[0], Float.parseFloat(tokens[2]))));
-
+                    // MAP into  (    UserID            ,(      ProductID ,         Rating       ))
                     return pairs.iterator();
                 })
                 .groupByKey()    // <-- REDUCE PHASE (R1)
@@ -79,9 +79,11 @@ public class G14HW1 {
                 })
                 .reduceByKey((x, y) -> Math.max(x,y)); // <-- REDUCE PHASE (R2)
 
-        count.mapToPair(pair -> new Tuple2<Float , String>(pair._2, pair._1)).sortByKey(false).take(T)
+        maxNormRatings.mapToPair(pair -> new Tuple2<Float , String>(pair._2, pair._1)).sortByKey(false).take(T)
                 .forEach(pair -> System.out.println(pair._2 + " -> " + pair._1));
-        System.out.println("Dataset dimension = " + count.count());
+
+
+        System.out.println("Dataset dimension = " + maxNormRatings .count());
 
 
     }
